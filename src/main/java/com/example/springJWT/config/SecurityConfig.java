@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.springJWT.jwt.JWTFilter;
 import com.example.springJWT.jwt.JWTUtil;
 import com.example.springJWT.jwt.LoginFilter;
 
@@ -55,6 +56,8 @@ public class SecurityConfig {
             .requestMatchers("/login", "/", "/join").permitAll()
             .anyRequest().authenticated());
 
+    http
+        .addFilterBefore(new JWTFilter(jwtUtil), LoginFilter.class);
     // AuthenticationManager()와 JWTUtil 인수 전달
     http
         .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil),
