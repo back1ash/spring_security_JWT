@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.springJWT.jwt.JWTUtil;
 import com.example.springJWT.jwt.LoginFilter;
 
 @Configuration
@@ -22,58 +23,47 @@ public class SecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
+  private final AuthenticationConfiguration authenticationConfiguration;
+  // JWTUtil 주입
+  private final JWTUtil jwtUtil;
+
+  public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+
+    return configuration.getAuthenticationManager();
+  }
+
+  public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil) {
+
+    this.authenticationConfiguration = authenticationConfiguration;
+    this.jwtUtil = jwtUtil;
+  }
+
   @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-  @Configuration
-  @EnableWebSecurity
-  public class SecurityConfig {
+    http
+        .csrf((auth) -> auth.disable());
 
-    @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+    http
+        .formLogin((auth) -> auth.disable());
 
-      return new BCryptPasswordEncoder();
-    }
+    http
+        .httpBasic((auth) -> auth.disable());
 
-    private final AuthenticationConfiguration authenticationConfiguration;
+    http
+        .authorizeHttpRequests((auth) -> auth
+            .requestMatchers("/login", "/", "/join").permitAll()
+            .anyRequest().authenticated());
 
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration) {
+    // AuthenticationManager()와 JWTUtil 인수 전달
+    http
+        .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil),
+            UsernamePasswordAuthenticationFilter.class);
 
-      this.authenticationConfiguration = authenticationConfiguration;
-    }
+    http
+        .sessionManagement((session) -> session
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-
-      return configuration.getAuthenticationManager();
-    }
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-      http
-          .csrf((auth) -> auth.disable());
-
-      http
-          .formLogin((auth) -> auth.disable());
-
-      http
-          .httpBasic((auth) -> auth.disable());
-
-      http
-          .authorizeHttpRequests((auth) -> auth
-              .requestMatchers("/login", "/", "/join").permitAll()
-              .anyRequest().authenticated());
-
-      // 필터 추가 LoginFilter()는 인자를 받음 (AuthenticationManager() 메소드에
-      // authenticationConfiguration 객체를 넣어야 함) 따라서 등록 필요
-      http
-          .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration)),
-              UsernamePasswordAuthenticationFilter.class);
-
-      http
-          .sessionManagement((session) -> session
-              .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-      return http.build();
-    }
+    return http.build();
   }
 }
